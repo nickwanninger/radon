@@ -8,7 +8,7 @@ copyright:           "2019 Nick Wanninger"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
+- LICENSE
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -21,14 +21,15 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
-- parsec
+- megaparsec
 - containers
+- parser-combinators
 
 library:
   source-dirs: src
 
 executables:
-  radon-exe:
+  radc:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

@@ -1,15 +1,31 @@
 module Radon where
 
+import Data.Void
 import Data.List
 import System.IO
 import Control.Monad
-import Text.ParserCombinators.Parsec.Expr
-import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Expr
-import Text.ParserCombinators.Parsec.Language
-import qualified Text.ParserCombinators.Parsec.Token as Token
+-- this module contains commonly useful tools:
+import Text.Megaparsec
+-- if you parse a stream of characters
+import Text.Megaparsec.Char
+-- if you need to parse permutation phrases:
+import Control.Applicative.Permutations -- from parser-combinators
+-- if you need to parse expressions:
+import Control.Monad.Combinators.Expr -- from parser-combinators
+-- for lexing of character streams
+import qualified Text.Megaparsec.Char.Lexer as L
+
+
 import Radon.Types
 import Radon.Syntax
+
+
+
+
+type Parser = Parsec Void String
+--                   ^    ^ Iterator type
+--                   | error type
+
 
 
 -- | Parse a string+path into a module
@@ -25,37 +41,53 @@ parseFile path = do
     return $ parseString source path
 
 
+-- | Helper function
+-- | TODO: DELETE
 example = parseFile "example.rad"
 
 
-test :: String -> Either ParseError Expr
+
+
+
+-- | Space Consumer: Absorbs whitespace, line comments, and block comments
+sc :: Parser ()
+sc = L.space space1 lineCmnt blockCmnt
+  where
+    lineCmnt  = L.skipLineComment "--"
+    blockCmnt = L.skipBlockComment "{-" "-}"
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
+
+symbol :: String -> Parser String
+symbol = L.symbol sc
+
+
+
+
+
 test = parse expr ""
 
 
-languageDef =
-  emptyDef { Token.commentStart    = "{-"
-           , Token.commentEnd      = "-}"
-           , Token.commentLine     = "--"
-           , Token.identStart      = letter
-           , Token.identLetter     = alphaNum
-           , Token.reservedNames   = [ "let"
-                                     , "in"
-                                     , "if"
-                                     , "then"
-                                     , "else"
-                                     ]
-           , Token.reservedOpNames = ["+", "-", "*", "/", ":="
-                                     , "<", ">", "and", "or", "not"
-                                     ]
-           }
-
-lexer = Token.makeTokenParser languageDef
-
-identifier = Token.identifier lexer -- parses an identifier
-reserved   = Token.reserved   lexer -- parses a reserved name
-reservedOp = Token.reservedOp lexer -- parses an operator
-parens     = Token.parens     lexer -- parses surrounding parenthesis:
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
                                     --   parens p
+                                    --
+rword :: String -> Parser ()
+rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
+
+rws :: [String] -- list of reserved words
+rws = ["if","then","else","let"]
+
+identifier :: Parser String
+identifier = (lexeme . try) (p >>= check)
+  where
+    p       = (:) <$> letterChar <*> many alphaNumChar
+    check x = if x `elem` rws
+                then fail $ "keyword " ++ show x ++ " cannot be an identifier"
+                else return x
+
+
 
 
 variable :: Parser Expr
@@ -64,27 +96,10 @@ variable = do
     return $ Var x
 
 
--- | Whitespace and comments simply ignore some run of chars
-whiteSpace :: Parser ()
-whiteSpace = skipMany1 (oneOf " \t\n")
-
-
-
-comment :: Parser ()
-comment =
-    (string "--" >> manyTill anyChar newline >> spaces >> return ()) <|>
-    (string "{-" >> manyTill anyChar ((try (string "-}") >> return ()) <|> eof) >> spaces >> return ())
-
-
--- | skip over and ignore buffer chars
-ignored :: Parser ()
-ignored = skipMany (whiteSpace <|> comment)
-
-
 -- | parser for integer literals
 integer :: Parser Expr
 integer = do
-    x <- many1 digit
+    x <- some digitChar
     return $ IntConst $ read x
 
 
@@ -96,11 +111,11 @@ number = try integer
 -- | parse `if x then y else z` constructs
 ifExpr :: Parser Expr
 ifExpr =
-    do reserved "if"
+    do rword "if"
        cond <- aexpr
-       reserved "then"
+       rword "then"
        e1 <- aexpr
-       reserved "else"
+       rword "else"
        e2 <- aexpr
        return $ If cond e1 e2
 
@@ -109,27 +124,27 @@ ifExpr =
 -- | parser for the `let x = y in z` construct
 letIn :: Parser Expr
 letIn =
-    do reserved "let"
+    do rword "let"
        name <- identifier
        char '='
        e1 <- aexpr
-       reserved "in"
+       rword "in"
        e2 <- aexpr
        return $ Let name e1 e2
 
 
 expr :: Parser Expr
 expr = do
-    ignored
+    sc
     x <- integer <|> variable <|> parens aexpr <|> letIn <|> ifExpr
-    ignored
+    sc
     return x
 
 aexpr :: Parser Expr
 aexpr = do
-    ignored
+    sc
     x <- expr
-    ignored
+    sc
     return x
 
 -- | Top Level statement parsing
@@ -140,19 +155,19 @@ aexpr = do
 -- | Let bindings, so `let id x = x'
 letBinding :: Parser Stmt
 letBinding = do
-    reserved "let"
+    rword "let"
     name <- identifier
     args <- many identifier
-    char '='
+    symbol "="
     val <- aexpr
     return $ Binding name args val
 
 
 statement :: Parser Stmt
 statement = do
-    ignored
+    sc
     x <- letBinding
-    ignored
+    sc
     return x
 
 
