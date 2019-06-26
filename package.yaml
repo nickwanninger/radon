@@ -1,7 +1,7 @@
 name:                radon
 version:             0.1.0.0
 github:              "nickwanninger/radon"
-license:             BSD3
+license:             MIT
 author:              "nickwanninger"
 maintainer:          "nickwanninger@gmail.com"
 copyright:           "2019 Nick Wanninger"
