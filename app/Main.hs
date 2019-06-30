@@ -1,13 +1,12 @@
 module Main where
 
+import Data.List
 -- For getArgs
 import System.Environment
-import Data.List
 
 import Radon (parseString)
 
 commaSep = intercalate ", "
-
 
 main :: IO ()
 main = do

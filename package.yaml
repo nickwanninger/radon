@@ -24,6 +24,7 @@ dependencies:
 - megaparsec
 - containers
 - parser-combinators
+- bytestring
 
 library:
   source-dirs: src
