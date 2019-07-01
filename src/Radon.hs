@@ -11,19 +11,12 @@ import System.IO
 
 import Control.Monad
 
--- this module contains commonly useful tools:
-import Text.Megaparsec
-
--- if you parse a stream of characters
-import Text.Megaparsec.Char
-
--- if you need to parse permutation phrases:
 import Control.Applicative.Permutations
-
--- if you need to parse expressions:
 import Control.Monad.Combinators.Expr
-
--- for lexing of character streams
+-- | Megaparsec imports
+import Text.Megaparsec
+import Text.Megaparsec.Error
+import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import Radon.Syntax
@@ -55,8 +48,6 @@ parseFile path = do
 -- | TODO: DELETE
 example = parseFile "example.rad"
 
-
-
 -- | Space Consumer: Absorbs whitespace, line comments, and block comments
 sc :: Parser ()
 sc = L.space space1 lineCmnt blockCmnt
@@ -78,15 +69,15 @@ parens = between (symbol "(") (symbol ")")
 rword :: String -> Parser ()
 rword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 
-rws :: [String] -- list of reserved words
-rws = ["if", "then", "else", "let"]
+reservedWords :: [String] -- list of reserved words
+reservedWords = ["if", "then", "else", "let"]
 
 identifier :: Parser String
 identifier = (lexeme . try) (p >>= check)
   where
     p = (:) <$> letterChar <*> many alphaNumChar
     check x =
-        if x `elem` rws
+        if x `elem` reservedWords
             then fail $ "keyword " ++ show x ++ " cannot be an identifier"
             else return x
 
@@ -127,6 +118,8 @@ letIn = do
     e2 <- aexpr
     return $ Let name e1 e2
 
+
+
 expr :: Parser Expr
 expr = do
     sc
@@ -134,12 +127,14 @@ expr = do
     sc
     return x
 
+
 aexpr :: Parser Expr
 aexpr = do
     sc
     x <- expr
     sc
     return x
+
 
 -- | Top Level statement parsing
 -- | Let bindings, so `let id x = x'
