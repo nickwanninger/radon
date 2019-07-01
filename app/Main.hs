@@ -1,86 +1,82 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
-
-module Main
-    ( main
-    ) where
-
-import Control.Applicative hiding (some)
-import Data.List (intercalate)
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Text (Text)
-import Data.Void
-import Text.Megaparsec
-import Text.Megaparsec (some)
-import Text.Megaparsec.Char
-
-data SyntaxError
-    = TrivialWithLocation
-          [String] -- position stack
-          (Maybe (ErrorItem Char))
-          (Set (ErrorItem Char))
-    | FancyWithLocation
-          [String] -- position stack
-          (ErrorFancy Void) -- Void, because we do not want to allow to nest Customs
-    deriving (Eq, Ord, Show)
-
-instance ShowErrorComponent SyntaxError where
-    showErrorComponent (TrivialWithLocation stack us es) =
-        parseErrorTextPretty (TrivialError @Char @Void undefined Nothing es) ++
-        showPosStack stack
-    showErrorComponent (FancyWithLocation stack cs) =
-        showErrorComponent cs ++ showPosStack stack
-
-showPosStack :: [String] -> String
-showPosStack = intercalate ", " . fmap ("in " ++)
-
-type Parser = Parsec SyntaxError Text
-
-inside :: String -> Parser a -> Parser a
-inside location p = do
-    r <- observing p
-    case r of
-        Left (TrivialError _ us es) ->
-            fancyFailure . Set.singleton . ErrorCustom $
-            TrivialWithLocation [location] us es
-        Left (FancyError _ xs) -> do
-            let f (ErrorFail msg) =
-                    ErrorCustom $ FancyWithLocation [location] (ErrorFail msg)
-                f (ErrorIndentation ord rlvl alvl) =
-                    ErrorCustom $
-                    FancyWithLocation
-                        [location]
-                        (ErrorIndentation ord rlvl alvl)
-                f (ErrorCustom (TrivialWithLocation ps us es)) =
-                    ErrorCustom $ TrivialWithLocation (location : ps) us es
-                f (ErrorCustom (FancyWithLocation ps cs)) =
-                    ErrorCustom $ FancyWithLocation (location : ps) cs
-            fancyFailure (Set.map f xs)
-        Right x -> return x
-
-myParser :: Parser String
-myParser = some (char 'a') *> some (char 'b')
-
-main :: IO ()
-main = do
-    parseTest (inside "foo" myParser) "aaacc"
-    parseTest (inside "foo" $ inside "bar" myParser) "aaacc"
-{-
 module Main where
 
 import Data.List
+
+import System.Console.GetOpt
+
+import Control.Monad
+import Data.Maybe
+import Radon (parseString)
 -- For getArgs
 import System.Environment
+import System.Exit
 
-import Radon (parseString)
+version :: String
+version = "0.0.1"
 
-commaSep = intercalate ", "
+-- | What action to do
+data Action =
+    BuildAction
+    deriving (Show)
+
+data Options =
+    Options
+        { optHelp :: Bool
+        , optVersion :: Bool
+        , optAction :: Action
+        }
+    deriving (Show)
+
+defaultOptions :: Options
+defaultOptions =
+    Options {optHelp = False, optVersion = False, optAction = BuildAction}
+
+options :: [OptDescr (Options -> Options)]
+options =
+    [ Option
+          ['v']
+          ["version"]
+          (NoArg (\opts -> opts {optVersion = True}))
+          "Show the version of the compiler"
+    , Option
+          ['h']
+          ["version"]
+          (NoArg (\opts -> opts {optHelp = True}))
+          "Show help"
+    , Option
+          ['c']
+          ["build"]
+          (NoArg (\opts -> opts {optAction = BuildAction}))
+          "Build a file"
+    ]
+
+
+usage :: String
+usage = usageInfo header options
+    where header = "Usage: radc [OPTIONS...] filename\n\n"
+
+compilerOptions :: [String] -> IO (Options, Maybe String)
+compilerOptions argv =
+    case getOpt Permute options argv of
+        (o, [n], []) -> return (foldl (flip id) defaultOptions o, Just n)
+        (o, _, []) -> return (foldl (flip id) defaultOptions o, Nothing)
+        (_, _, errs) ->
+            ioError $ userError $ concat errs ++ usage
+  where
+    exactlyone = "There must be exactly one rad file given\n\n"
 
 main :: IO ()
 main = do
-    args <- getArgs
-    let input = "example.rad"
-    source <- readFile input
-    putStrLn $ show $ parseString source input
--}
+    argv <- getArgs
+    (opts, fname) <- compilerOptions argv
+    when (optVersion opts) $ do
+        putStrLn version
+        exitSuccess
+
+    when (optHelp opts) $ do
+        putStrLn $ usage
+        exitSuccess
+    print opts
+    let fname' = fromJust fname
+    source <- readFile fname'
+    putStrLn $ show $ parseString source fname'
