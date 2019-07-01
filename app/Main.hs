@@ -5,6 +5,7 @@ import Data.List
 import System.Console.GetOpt
 
 import Control.Monad
+import System.Console.ANSI
 import Data.Maybe
 import Radon (parseString)
 -- For getArgs
@@ -13,23 +14,16 @@ import System.Exit
 
 version :: String
 version = "0.0.1"
-
--- | What action to do
-data Action =
-    BuildAction
-    deriving (Show)
-
 data Options =
     Options
         { optHelp :: Bool
         , optVersion :: Bool
-        , optAction :: Action
         }
     deriving (Show)
 
 defaultOptions :: Options
 defaultOptions =
-    Options {optHelp = False, optVersion = False, optAction = BuildAction}
+    Options {optHelp = False, optVersion = False}
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -43,17 +37,25 @@ options =
           ["version"]
           (NoArg (\opts -> opts {optHelp = True}))
           "Show help"
-    , Option
-          ['c']
-          ["build"]
-          (NoArg (\opts -> opts {optAction = BuildAction}))
-          "Build a file"
     ]
 
 
-usage :: String
-usage = usageInfo header options
-    where header = "Usage: radc [OPTIONS...] filename\n\n"
+usageMsg :: String
+usageMsg = usageInfo header options
+    where header = "Usage: radc [OPTIONS...] filename"
+
+usageErr :: String -> IO ()
+usageErr msg = do
+    putStrLn ""
+    setSGR [SetColor Foreground Vivid Red]
+    putStrLn $ "Fatal error: " <> msg
+    setSGR [Reset]
+    usage
+
+
+usage :: IO ()
+usage = do putStrLn usageMsg
+           exitSuccess
 
 compilerOptions :: [String] -> IO (Options, Maybe String)
 compilerOptions argv =
@@ -61,22 +63,24 @@ compilerOptions argv =
         (o, [n], []) -> return (foldl (flip id) defaultOptions o, Just n)
         (o, _, []) -> return (foldl (flip id) defaultOptions o, Nothing)
         (_, _, errs) ->
-            ioError $ userError $ concat errs ++ usage
-  where
-    exactlyone = "There must be exactly one rad file given\n\n"
+            ioError $ userError $ concat errs ++ usageMsg
 
 main :: IO ()
 main = do
     argv <- getArgs
     (opts, fname) <- compilerOptions argv
+
+    -- handle printing version when the user provides `-v`
     when (optVersion opts) $ do
         putStrLn version
         exitSuccess
 
-    when (optHelp opts) $ do
-        putStrLn $ usage
-        exitSuccess
-    print opts
-    let fname' = fromJust fname
-    source <- readFile fname'
-    putStrLn $ show $ parseString source fname'
+    -- handle printing the help when the user provides `-h`
+    when (optHelp opts) usage
+
+    -- At this point, we need to check if the user provides 
+    case fname of
+        Nothing -> usageErr "No file provided"
+        Just fname' -> do
+            source <- readFile fname'
+            putStrLn $ show $ parseString source fname'

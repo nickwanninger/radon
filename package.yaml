@@ -25,6 +25,7 @@ dependencies:
 - containers
 - parser-combinators
 - bytestring
+- ansi-terminal
 - text
 
 library:
