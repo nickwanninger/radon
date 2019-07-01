@@ -12,6 +12,8 @@ import Radon (parseString)
 import System.Environment
 import System.Exit
 
+import Radon.Parser.Lexer
+
 version :: String
 version = "0.0.1"
 data Options =
@@ -83,4 +85,5 @@ main = do
         Nothing -> usageErr "No file provided"
         Just fname' -> do
             source <- readFile fname'
-            putStrLn $ show $ parseString source fname'
+            putStrLn $ show $ lexString source
+            -- putStrLn $ show $ parseString source fname'

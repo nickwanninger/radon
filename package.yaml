@@ -27,6 +27,12 @@ dependencies:
 - bytestring
 - ansi-terminal
 - text
+- array
+
+build-tools:
+  - alex
+  - happy
+
 
 library:
   source-dirs: src
