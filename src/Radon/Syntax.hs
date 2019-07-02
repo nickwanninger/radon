@@ -4,15 +4,16 @@ import Data.List
 
 type Name = String
 
-data Module
-    = Module Name [Stmt]
-    | ModuleParseError String
-    deriving (Eq)
+data Module =
+    Module Name [TopDecl]
+    deriving (Eq, Show)
 
-instance Show Module where
-    show (Module name stmts) =
-        "# module " <> name <> "\n" <> intercalate "\n" (map show stmts)
-    show (ModuleParseError err) = "Parse Error: " <> err
+data RaModule =
+    RaModule
+        { modName :: Maybe String
+        , modStmts :: Maybe [TopDecl]
+        }
+    deriving (Show, Eq)
 
 data Expr
     = Var Name
@@ -31,10 +32,10 @@ instance Show Expr where
     show (Let n e1 e2) =
         "let " <> n <> " = " <> (show e1) <> " in " <> (show e2)
 
-data Stmt =
+data TopDecl =
     Binding Name [Name] Expr
     deriving (Eq)
 
-instance Show Stmt where
+instance Show TopDecl where
     show (Binding name args val) =
-        "let " <> name <> concat (map (" " <>) args) <> " = " <> (show val)
+        name <> concat (map (" " <>) args) <> " = " <> (show val)

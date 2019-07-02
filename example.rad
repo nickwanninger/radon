@@ -1,5 +1,1 @@
-safediv :: Int, Int -> Int
-safediv x y =
-    if y == 0
-        then 0 -- Div by zero is zero
-        else (x / y)
+id x = x

@@ -3,7 +3,6 @@ module Radon.Parser
     ) where
 
 import Radon.Parser.Lexer (lexString)
-import Radon.Parser.Parser (parseModule)
+import Radon.Parser.Parser (parseModule, ParseResult(..))
 
-parseString :: String -> ()
 parseString = parseModule . lexString

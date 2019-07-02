@@ -81,6 +81,7 @@ main = do
         Nothing -> usageErr "No file provided"
         Just fname' -> do
             source <- readFile fname'
-            putStrLn source -- for now just print the file
+            let mod = parseString source
+            putStrLn $ show mod
             -- putStrLn $ show $ lexString source
             -- putStrLn $ show $ parseString source fname'
