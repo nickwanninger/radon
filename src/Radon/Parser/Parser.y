@@ -1,6 +1,6 @@
 -- vim: filetype=happy
 {
-module Radon.Parser.Parser (parseModule, ParseResult(..)) where
+module Radon.Parser.Parser (parseModule) where
 
 import Radon.Parser.Lexer (Token(..), TokenData(..), lexString)
 
@@ -12,7 +12,7 @@ import Radon.Syntax
 %tokentype { Token }
 %error { parseError }
 
--- %monad { ParseResult } { >>= } { return }
+%monad { ParseResult } { >>= } { return }
 
 %token
 	'let' {Tok _ (TLet)}
@@ -26,32 +26,42 @@ import Radon.Syntax
   -- a module is a grouping of top level expressions, like imports,
 	-- declarations, types, etc.
 module :: { RaModule }
-       : topdecls    {% RaModule {modName = Nothing, modStmts = Just $1} }
+       : topdecls    {% return $ RaModule {modName = Nothing, modStmts = Just (reverse $1)} }
 
 	-- Zero or more semicolons
 semis : semis ';'   {}
       | {- empty -} {}
 
+
 topdecls :: { [TopDecl] }
-         : topdecls topdecl        {% reverse ($2:$1) }
-         | {- empty -}             { [] }
+topdecls : topdecls topdecl        {% return ($2:$1) }
+         | {- empty -}             {% return [] }
+
 
 topdecl :: { TopDecl }
-        : topLevelBinding { $1 }
+topdecl : topLevelBinding { $1 }
 
 
-bindingArgs :: { [String] }
-            : bindingArgs var {% ($2:$1)}
-            | {- empty -} { [] }
+bindArgs :: { [String] }
+         : bindArgs var {% return ($2:$1)}
+         | {- empty -}  {% return [] }
 
 topLevelBinding :: { TopDecl }
-                : var bindingArgs '=' aexpr {% (Binding $1 $2 $4) }
+                : var bindArgs '=' aexpr {% return $ (Binding $1 (reverse $2) $4) }
 
 
 aexpr :: { Expr }
-      : var  {% Var $1 }
+      : var  {% return $ Var $1 }
 {
 
+
+-- parseError :: [Token] -> a
+parseError toks
+    = fail $ "Parse Error: " ++ if (length toks == 0)
+                            then "Unexpected EOF"
+                            else "Unexpected token around " ++ (show $ head toks)
+
+-- Monad for parse result
 data ParseResult a
     = Success a
     | ParseError String
@@ -79,9 +89,4 @@ instance Applicative ParseResult where
 
     Success _m1 *> m2      = m2
     ParseError e  *> _m2     = ParseError e
-
-
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
-
 }

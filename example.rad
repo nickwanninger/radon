@@ -1,2 +1,2 @@
-first a b = a
-second a b = b
+true x y = x
+false x 1 = y

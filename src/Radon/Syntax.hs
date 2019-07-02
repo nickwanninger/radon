@@ -38,4 +38,4 @@ data TopDecl =
 
 instance Show TopDecl where
     show (Binding name args val) =
-        name <> concat (map (" " <>) args) <> " = " <> (show val)
+        name <> (show args) <> " = " <> (show val)
