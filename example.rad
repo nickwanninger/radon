@@ -1,1 +1,2 @@
-id x = x
+first a b = a
+second a b = b
