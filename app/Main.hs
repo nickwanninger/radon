@@ -72,15 +72,15 @@ main = do
     (opts, fname) <- compilerOptions argv
     -- handle printing version when the user provides `-v`
     when (optVersion opts) $ do
-        putStrLn version
+        putStrLn version -- just print the version and exit
         exitSuccess
     -- handle printing the help when the user provides `-h`
-    when (optHelp opts) usage
+    when (optHelp opts) usage -- print the usage, which exits
     -- At this point, we need to check if the user provides a file or not
     case fname of
         Nothing -> usageErr "No file provided"
         Just fname' -> do
             source <- readFile fname'
-            putStrLn source
+            putStrLn source -- for now just print the file
             -- putStrLn $ show $ lexString source
             -- putStrLn $ show $ parseString source fname'

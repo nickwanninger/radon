@@ -18,7 +18,8 @@ import Radon.Parser.Lexer (Token(..), TokenData(..), lexString)
 
 %%
 
-
+  -- a module is a grouping of top level expressions, like imports,
+	-- declarations, types, etc.
 module : 'let' {}
 
 {
