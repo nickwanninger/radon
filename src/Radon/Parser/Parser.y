@@ -81,32 +81,45 @@ arguments_ :: { [Pat] }
 
 
 ifstmt :: { Expr }
-       : 'if' fexp 'then' fexp 'else' fexp {% return $ If $2 $4 $6}
+       : 'if' fexp 'then' fexp 'else' fexp {% return $ If $2 $4 $6 }
 
 apat :: { Pat }
      : var {% return $ VarPat $1 }
 
 ofcases :: { [([Pat], Expr)] }
-        : ofcases_ {% return $ reverse $1 }
+    : ofcases_ {% return $ reverse $1 }
+
 ofcases_ :: { [([Pat], Expr)] }
-           : ofcases_ 'of' arguments '=' fexp {% return $ (($3, $5):$1)}
-           | {- empty -} {% return [] }
+    : ofcases_ 'of' arguments '=' fexp {% return $ (($3, $5):$1)}
+    | {- empty -} {% return [] }
 
 letBinding :: { TopDecl }
-           -- First type of let statement is simply without any extra cases.
-           -- for example: let id x = x
-           : 'let' var arguments '=' fexp {% let name = $2
-                                                 args = $3
-                                             in return $ (Binding $2 [($3, $5)]) }
-           | 'let' var ofcases {% return $ Binding $2 $3 }
+    -- First type of let statement is simply without any extra cases.
+    -- for example: let id x = x
+    : 'let' var arguments '=' fexp {% return $ (Binding $2 [($3, $5)]) }
+    | 'let' var ofcases {% return $ Binding $2 $3 }
+
+
+commaParen :: { Bool }
+    : ')'     { False }
+    | ',' ')' { True }
+
+
+opt_comma :: { Maybe Token }
+opt_comma
+    : {- empty -} { Nothing }
+    | ','         { Just $1 }
+
 
 aexp :: { Expr }
-     : '(' fexp ')' {% return $2 } -- Simple parenthesis parser, just return the internal expression
-     | '-' aexp     {% return $ Neg $2 } -- Negation parser, simply negate the second expression
-     | var          {% return $ Var $1 } -- simple variable, just a name
-     | literal      {% return $1 }
-     | ifstmt       {% return $1 }
-
+    : '(' ')'        {% return $ TupleLit [] } -- tuples are parsed before parenthesized exprs
+    -- parsing a parenthesis can be a little tricky because the trailing comma changes the expression
+    -- from the expression it contains to a tuple of length one
+    | '(' listcontents opt_comma ')' {% return $ makeTupleOrExpr (reverse $2) $3 }
+    | '-' aexp     {% return $ Neg $2 } -- Negation parser, simply negate the second expression
+    | var          {% return $ Var $1 } -- simple variable, just a name
+    | literal      {% return $1 }
+    | ifstmt       {% return $1 }
 
 
 literal :: { Expr }
@@ -114,7 +127,7 @@ literal : listlit {% return $1 }
         | int     {% return $ Lit $ LitInt $1 }
         | double  {% return $ Lit $ LitDouble $1 }
 
-
+ -- A literal list, will end up as a series of cons calls
 listlit :: { Expr }
 listlit : '[' ']' {% return $ EmptyList }
         | '[' listcontents ']' {% return $ toLCons $ reverse $2 }
@@ -129,16 +142,26 @@ listcontents :: { [Expr] }
  -- fexp is a function application expression, which basically
  -- just means doing left associative juxtaposition for function application
 fexp :: { Expr }
-     : fexp aexp {% return $ App $1 $2}
+     : aexp appArgs {% return $ App $1 (reverse $2)}
      | aexp {% return $1 }
 
 
+     -- arguments to a function application
+appArgs :: { [Expr] }
+      : appArgs aexp {% return $ ($2:$1)}
+      | aexp {% return [$1]}
 
 
  -- op :: {  }   -- used in infix decls
  -- op : varop { $1 }
 {
 
+
+
+makeTupleOrExpr :: [Expr] -> Maybe Token -> Expr
+makeTupleOrExpr [e] Nothing = e
+makeTupleOrExpr es@(_:_) (Just t) = TupleLit es
+makeTupleOrExpr es@(_:_) Nothing  = TupleLit es
 
 -- | handle a parser error with the token stream where the error occurs.
 --  TODO: create a better error message reporting system with a pretty printer

@@ -27,11 +27,12 @@ data Expr
     = Var Id
     | Lit Lit
     | If Expr Expr Expr
-    | Let Name Expr Expr
-    | App Expr Expr
-    | Neg Expr
+    | Let Name Expr Expr -- let expression, `let _ in _`
+    | App Expr [Expr] -- A funciton applied to arguments, `f x y z...`
+    | Neg Expr        -- negation, `-x`
     | LCons Expr Expr -- The cons oper, basically :
     | EmptyList -- []
+    | TupleLit [Expr]
     deriving (Eq)
 
 instance Show Expr where
@@ -41,10 +42,17 @@ instance Show Expr where
         "if " <> (show c) <> " then " <> (show e1) <> " else " <> (show e2)
     show (Let n e1 e2) =
         "let " <> n <> " = " <> (show e1) <> " in " <> (show e2)
-    show (App f a) = "(" <> (show f) <> " " <> (show a) <> ")"
+    show (App f args) = "(" <> (show f) <> " " <> (intercalate " " $ map show args) <> ")"
     show (Neg e) = "-" ++ (show e)
     show (LCons l r) = "(" <> (show l) <> ":" <> (show r) <> ")"
     show (EmptyList) = "[]"
+    show (TupleLit elems) = showTuple elems
+
+
+showTuple :: [Expr] -> String
+showTuple [] = "()"
+showTuple [x] = "(" <> (show x) <> ",)"
+showTuple elms = "(" <> (intercalate ", " $ map show elms) <> ")"
 
 -- Converts a haskell list of expressions to a nested lcons expr
 toLCons :: [Expr] -> Expr
@@ -99,7 +107,7 @@ type Arguments = [Pat]
 type ArgCase = (Arguments, Expr)
 
 showArgs :: Arguments -> String
-showArgs args = (intercalate ", " (map show args))
+showArgs args = (intercalate " " (map show args))
 
 showArgCase :: ArgCase -> String
 showArgCase (args, val) = (showArgs args) ++ " = " ++ (show val)
@@ -108,5 +116,5 @@ showArgCases :: Int -> [ArgCase] -> String
 -- One case should print without the leading of
 showArgCases _ [c] = showArgCase c
 showArgCases ind cases =
-    (intercalate indent (map ("of " ++) (map (showArgCase) cases)))
+    indent ++ (intercalate indent (map ("of " ++) (map (showArgCase) cases)))
     where indent = "\n" ++ (concat $ replicate ind " ")
