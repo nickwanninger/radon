@@ -5,17 +5,19 @@ import Data.List
 import System.Console.GetOpt
 
 import Control.Monad
-import System.Console.ANSI
 import Data.Maybe
-import Radon (parseString)
+import System.Console.ANSI
+
 -- For getArgs
 import System.Environment
 import System.Exit
 
+import Radon.Parser
 import Radon.Parser.Lexer
 
 version :: String
 version = "0.0.1"
+
 data Options =
     Options
         { optHelp :: Bool
@@ -24,8 +26,7 @@ data Options =
     deriving (Show)
 
 defaultOptions :: Options
-defaultOptions =
-    Options {optHelp = False, optVersion = False}
+defaultOptions = Options {optHelp = False, optVersion = False}
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -41,10 +42,10 @@ options =
           "Show help"
     ]
 
-
 usageMsg :: String
 usageMsg = usageInfo header options
-    where header = "Usage: radc [OPTIONS...] filename"
+  where
+    header = "Usage: radc [OPTIONS...] filename"
 
 usageErr :: String -> IO ()
 usageErr msg = do
@@ -54,33 +55,29 @@ usageErr msg = do
     setSGR [Reset]
     usage
 
-
 usage :: IO ()
-usage = do putStrLn usageMsg
-           exitSuccess
+usage = do
+    putStrLn usageMsg
+    exitSuccess
 
 compilerOptions :: [String] -> IO (Options, Maybe String)
 compilerOptions argv =
     case getOpt Permute options argv of
         (o, [n], []) -> return (foldl (flip id) defaultOptions o, Just n)
         (o, _, []) -> return (foldl (flip id) defaultOptions o, Nothing)
-        (_, _, errs) ->
-            ioError $ userError $ concat errs ++ usageMsg
+        (_, _, errs) -> ioError $ userError $ concat errs ++ usageMsg
 
 main :: IO ()
 main = do
     argv <- getArgs
     (opts, fname) <- compilerOptions argv
-
     -- handle printing version when the user provides `-v`
     when (optVersion opts) $ do
         putStrLn version
         exitSuccess
-
     -- handle printing the help when the user provides `-h`
     when (optHelp opts) usage
-
-    -- At this point, we need to check if the user provides 
+    -- At this point, we need to check if the user provides a file or not
     case fname of
         Nothing -> usageErr "No file provided"
         Just fname' -> do

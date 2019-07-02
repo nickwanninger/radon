@@ -22,6 +22,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 import Radon.Syntax
 import Radon.Types
 
+
+{-
 data SyntaxError =
     SyntaxError String
     deriving (Eq, Data, Typeable, Ord, Read, Show)
@@ -157,3 +159,5 @@ statement = do
 topLevel :: Parser [Stmt]
 topLevel = do
     many statement
+
+-}
