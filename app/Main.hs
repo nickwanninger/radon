@@ -14,6 +14,9 @@ import System.Exit
 
 import Radon
 
+import Radon.Syntax
+import Radon.Parser.Parser
+
 version :: String
 version = "0.0.1"
 
@@ -40,6 +43,7 @@ options =
           (NoArg (\opts -> opts {optHelp = True}))
           "Show help"
     ]
+
 
 usageMsg :: String
 usageMsg = usageInfo header options
@@ -81,7 +85,6 @@ main = do
         Nothing -> usageErr "No file provided"
         Just fname' -> do
             source <- readFile fname'
-            let mod = parseString source
-            putStrLn $ show mod
-            -- putStrLn $ show $ lexString source
-            -- putStrLn $ show $ parseString source fname'
+            case parseString source of
+                Success mod -> putStrLn $ show mod
+                err -> putStrLn $ show err

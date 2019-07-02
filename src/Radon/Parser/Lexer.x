@@ -30,7 +30,7 @@ $operator = [\!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~\:]
 
 radon :-
 
-  $white+				                  ;
+  $white+				          ;
   "--".*                          ;
   $digit+ \. $digit+              { infuse $ \s -> TDouble (read s) }
   $digit+                         { infuse $ \s -> TInt (read s) }
@@ -42,13 +42,13 @@ radon :-
 
 {
 
-
 -- Abstract the real token data behind a datatype that holds positions
 data Token = Tok AlexPosn TokenData
   deriving (Eq)
 
 instance Show Token where
   show (Tok (AlexPn _ line col) tok) = "(" ++ (show line) ++ ":" ++ (show col) ++ " " ++ (show tok) ++ ")"
+
 
 
 tokLine :: Token -> Int
@@ -63,8 +63,10 @@ data TokenData
     = TLet -- special operators
     | TIn
     | TIf
+    | TThen
     | TElse
     | TEquals
+    | TOf
     -- Variable-esque things
     | TOper String
     | TIdent String
@@ -86,6 +88,7 @@ data TokenData
     | TDot -- .
     | TPipe -- |
     | TError
+    | TComma
     deriving (Eq, Show)
 
 -- | infuse lets the token definitions above be easily converted into
@@ -112,6 +115,7 @@ makeOper "::" = TDColon
 makeOper "\\" = TLam
 makeOper "|"  = TPipe
 makeOper "."  = TDot
+makeOper ","  = TComma
 
 -- Fall back and make a new generic oper
 makeOper s = TOper s
@@ -121,7 +125,9 @@ makeIdent :: String -> TokenData
 makeIdent "let" = TLet
 makeIdent "in" = TIn
 makeIdent "if" = TIf
+makeIdent "then" = TThen
 makeIdent "else" = TElse
+makeIdent "of" = TOf
 makeIdent s = TIdent s
 
 
