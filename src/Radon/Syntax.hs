@@ -79,6 +79,12 @@ data Pat
     | TuplePat [Pat] -- (a, b)
     deriving (Eq)
 
+
+patternIsVar :: Pat -> Bool
+patternIsVar (VarPat _) = True
+patternIsVar _ = False
+
+
 instance Show Pat where
     show (VarPat i) = i
     show (WildPat) = "_"

@@ -95,7 +95,9 @@ ofcases_ :: { [([Pat], Expr)] }
 letBinding :: { TopDecl }
            -- First type of let statement is simply without any extra cases.
            -- for example: let id x = x
-           : 'let' var arguments '=' fexp {% return $ (Binding $2 [($3, $5)]) }
+           : 'let' var arguments '=' fexp {% let name = $2
+                                                 args = $3
+                                             in return $ (Binding $2 [($3, $5)]) }
            | 'let' var ofcases {% return $ Binding $2 $3 }
 
 aexp :: { Expr }
