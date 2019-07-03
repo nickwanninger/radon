@@ -1,3 +1,5 @@
-let t1 = (1)
-let t2 = (1,)
-let t3 = (1, 2)
+let fst = \x y -> x
+
+let id = \x -> x
+
+let square = \x -> x * x

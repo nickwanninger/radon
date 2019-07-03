@@ -39,6 +39,8 @@ radon :-
   $operator+                      { infuse $ makeOper }
   $small $idchar*                 { infuse $ makeIdent }
 
+  _                               { infuse $ \s -> TUnder }
+
 
 {
 
@@ -89,6 +91,8 @@ data TokenData
     | TPipe -- |
     | TError
     | TComma
+    | TUnder
+    | TArrow
     deriving (Eq, Show)
 
 -- | infuse lets the token definitions above be easily converted into
@@ -116,6 +120,7 @@ makeOper "\\" = TLam
 makeOper "|"  = TPipe
 makeOper "."  = TDot
 makeOper ","  = TComma
+makeOper "->" = TArrow
 
 -- Fall back and make a new generic oper
 makeOper s = TOper s

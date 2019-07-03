@@ -31,9 +31,11 @@ import Radon.Syntax
     int    {Tok _ (TInt $$)}
     ':'    {Tok _ (TColon)}
     ','    {Tok _ (TComma)}
-
     '['    {Tok _ (TLSquare)}
     ']'    {Tok _ (TRSquare)}
+    '_'    {Tok _ (TUnder)}
+    '->'    {Tok _ (TArrow)}
+    lam    {Tok _ (TLam)}
 
 %%
 
@@ -81,44 +83,36 @@ arguments_ :: { [Pat] }
 
 
 ifstmt :: { Expr }
-       : 'if' fexp 'then' fexp 'else' fexp {% return $ If $2 $4 $6 }
+       : 'if' exp 'then' exp 'else' exp {% return $ If $2 $4 $6 }
 
 apat :: { Pat }
-     : var {% return $ VarPat $1 }
+    : var {% return $ VarPat $1 }
+    | '_' {% return $ WildPat }
+    | int     {% return $ LitPat $ LitInt $1 }
+    | double  {% return $ LitPat $ LitDouble $1 }
 
 ofcases :: { [([Pat], Expr)] }
     : ofcases_ {% return $ reverse $1 }
 
 ofcases_ :: { [([Pat], Expr)] }
-    : ofcases_ 'of' arguments '=' fexp {% return $ (($3, $5):$1)}
+    : ofcases_ 'of' arguments '=' exp {% return $ (($3, $5):$1)}
     | {- empty -} {% return [] }
 
 letBinding :: { TopDecl }
     -- First type of let statement is simply without any extra cases.
     -- for example: let id x = x
-    : 'let' var arguments '=' fexp {% return $ (Binding $2 [($3, $5)]) }
+    : 'let' var arguments '=' exp {% return $ (Binding $2 [($3, $5)]) }
     | 'let' var ofcases {% return $ Binding $2 $3 }
-
-
-commaParen :: { Bool }
-    : ')'     { False }
-    | ',' ')' { True }
-
-
-opt_comma :: { Maybe Token }
-opt_comma
-    : {- empty -} { Nothing }
-    | ','         { Just $1 }
-
 
 aexp :: { Expr }
     : '(' ')'        {% return $ TupleLit [] } -- tuples are parsed before parenthesized exprs
     -- parsing a parenthesis can be a little tricky because the trailing comma changes the expression
     -- from the expression it contains to a tuple of length one
-    | '(' listcontents opt_comma ')' {% return $ makeTupleOrExpr (reverse $2) $3 }
+    | '(' listcontents ')' {% return $ makeTupleOrExpr (reverse $2) }
     | '-' aexp     {% return $ Neg $2 } -- Negation parser, simply negate the second expression
     | var          {% return $ Var $1 } -- simple variable, just a name
     | literal      {% return $1 }
+    | lambda       {% return $1 }
     | ifstmt       {% return $1 }
 
 
@@ -135,16 +129,20 @@ listlit : '[' ']' {% return $ EmptyList }
 
 
 listcontents :: { [Expr] }
-         : listcontents ',' fexp {% return ($3:$1)}
-         | fexp  {% return [$1] }
+         : listcontents ',' exp {% return ($3:$1)}
+         | exp  {% return [$1] }
 
 
  -- fexp is a function application expression, which basically
  -- just means doing left associative juxtaposition for function application
 fexp :: { Expr }
      : aexp appArgs {% return $ App $1 (reverse $2)}
-     | aexp {% return $1 }
+     | aexp         {% return $1 }
+     | infixop      {% return $1 }
 
+
+lambda :: { Expr }
+lambda : lam arguments '->' exp {% return $ Lambda $2 $4 }
 
      -- arguments to a function application
 appArgs :: { [Expr] }
@@ -152,16 +150,29 @@ appArgs :: { [Expr] }
       | aexp {% return [$1]}
 
 
- -- op :: {  }   -- used in infix decls
- -- op : varop { $1 }
+op :: { Expr }   -- used in infix decls
+op : varop {% return $ Var $1 }
+
+
+infixop :: { Expr }
+infixop
+    : fexp {% return $1 }
+    | infixop op fexp {% return $ OpApp $1 $2 $3 }
+
+exp :: { Expr }
+exp : infixop {% return $1}
+
+
+
+
+
+
 {
-
-
-
-makeTupleOrExpr :: [Expr] -> Maybe Token -> Expr
-makeTupleOrExpr [e] Nothing = e
-makeTupleOrExpr es@(_:_) (Just t) = TupleLit es
-makeTupleOrExpr es@(_:_) Nothing  = TupleLit es
+-- Take a list of expressions and if the list of 1 long, it is simpy the first value,
+-- if it is any more, create a tuple
+makeTupleOrExpr :: [Expr] -> Expr
+makeTupleOrExpr [e] = e
+makeTupleOrExpr es@(_:_) = TupleLit es
 
 -- | handle a parser error with the token stream where the error occurs.
 --  TODO: create a better error message reporting system with a pretty printer
@@ -175,7 +186,6 @@ data ParseResult a
     = Success a
     | ParseError String
     deriving (Show, Eq)
-
 
 instance Monad ParseResult where
     (ParseError err) >>= f = (ParseError err)

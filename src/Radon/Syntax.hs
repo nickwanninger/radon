@@ -8,7 +8,6 @@ data Module =
     Module Name [TopDecl]
     deriving (Eq)
 
-
 data RaModule =
     RaModule
         { modName :: Maybe String
@@ -17,9 +16,13 @@ data RaModule =
     deriving (Eq)
 
 instance Show RaModule where
-    show m = intercalate "\n\n" (map show (case (modStmts m) of
-                                               Nothing -> []
-                                               Just l -> l))
+    show m =
+        intercalate
+            "\n\n"
+            (map show
+                 (case (modStmts m) of
+                      Nothing -> []
+                      Just l -> l))
 
 type Id = String
 
@@ -28,11 +31,16 @@ data Expr
     | Lit Lit
     | If Expr Expr Expr
     | Let Name Expr Expr -- let expression, `let _ in _`
+    | OpApp Expr Expr Expr -- Three Expressions, left op right
     | App Expr [Expr] -- A funciton applied to arguments, `f x y z...`
-    | Neg Expr        -- negation, `-x`
+    | Neg Expr -- negation, `-x`
     | LCons Expr Expr -- The cons oper, basically :
     | EmptyList -- []
     | TupleLit [Expr]
+    | Lambda [Pat] Expr -- a lambda is a list of patterns (arguments) and a body
+                        -- Just because they are patterns, doesnt mean you can do
+                        -- pattern matching in the lambda literal. We will end up
+                        -- checking that all the arguments are just variable patterns
     deriving (Eq)
 
 instance Show Expr where
@@ -42,12 +50,17 @@ instance Show Expr where
         "if " <> (show c) <> " then " <> (show e1) <> " else " <> (show e2)
     show (Let n e1 e2) =
         "let " <> n <> " = " <> (show e1) <> " in " <> (show e2)
-    show (App f args) = "(" <> (show f) <> " " <> (intercalate " " $ map show args) <> ")"
+    show (OpApp lhs op rhs) =
+        "(" <> (intercalate " " (map show [lhs, op, rhs])) <> ")"
+    show (App f args) =
+        "(" <> (show f) <> " " <> (intercalate " " $ map show args) <> ")"
     show (Neg e) = "-" ++ (show e)
     show (LCons l r) = "(" <> (show l) <> ":" <> (show r) <> ")"
     show (EmptyList) = "[]"
     show (TupleLit elems) = showTuple elems
-
+    show (Lambda args body) =
+        "(\\" <> (intercalate " " (map show args)) <> " -> " <> (show body) <>
+        ")"
 
 showTuple :: [Expr] -> String
 showTuple [] = "()"
@@ -75,7 +88,7 @@ data TopDecl =
 instance Show TopDecl where
     show (Binding name args) = label <> (showArgCases indent args)
       where
-        label = "let " <> name <> " "
+        label = "let " <> name
         indent = length label
 
 data Pat
@@ -87,11 +100,9 @@ data Pat
     | TuplePat [Pat] -- (a, b)
     deriving (Eq)
 
-
 patternIsVar :: Pat -> Bool
 patternIsVar (VarPat _) = True
 patternIsVar _ = False
-
 
 instance Show Pat where
     show (VarPat i) = i
@@ -107,7 +118,8 @@ type Arguments = [Pat]
 type ArgCase = (Arguments, Expr)
 
 showArgs :: Arguments -> String
-showArgs args = (intercalate " " (map show args))
+showArgs [] = ""
+showArgs args = " " <> (intercalate " " (map show args))
 
 showArgCase :: ArgCase -> String
 showArgCase (args, val) = (showArgs args) ++ " = " ++ (show val)
@@ -117,4 +129,5 @@ showArgCases :: Int -> [ArgCase] -> String
 showArgCases _ [c] = showArgCase c
 showArgCases ind cases =
     indent ++ (intercalate indent (map ("of " ++) (map (showArgCase) cases)))
-    where indent = "\n" ++ (concat $ replicate ind " ")
+  where
+    indent = "\n    "
