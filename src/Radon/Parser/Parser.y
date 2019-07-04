@@ -1,14 +1,16 @@
 -- vim: filetype=happy
 {
-module Radon.Parser.Parser (parseModule, ParseResult(..)) where
+module Radon.Parser.Parser (parseModule, parseExpr, ParseResult(..)) where
 
 import Radon.Parser.Lexer (Token(..), TokenData(..), lexString)
 
 import Radon.Syntax
+import Radon.Types
 }
 
 
 %name parseModule module
+%name parseExpr exp
 %tokentype { Token }
 %error { parseError }
 
@@ -20,7 +22,7 @@ import Radon.Syntax
     'if'   {Tok _ (TIf)}
     'then'   {Tok _ (TThen)}
     'else'   {Tok _ (TElse)}
-	';'    {Tok _ (TSemi)}
+	-- ';'    {Tok _ (TSemi)}
 	'='    {Tok _ (TEquals)}
 	var    {Tok _ (TIdent $$)}
     '-'    {Tok _ (TOper "-")}
@@ -37,6 +39,9 @@ import Radon.Syntax
     '->'    {Tok _ (TArrow)}
     lam    {Tok _ (TLam)}
 
+
+
+
 %%
 
   -- a module is a grouping of top level expressions, like imports,
@@ -45,31 +50,13 @@ module :: { RaModule }
        : topdecls    {% return $ RaModule {modName = Nothing, modStmts = Just (reverse $1)} }
 
 
-	-- Zero or more semicolons
-semis : semis ';'   {}
-      | {- empty -} {}
-
-
 topdecls :: { [TopDecl] }
-topdecls : topdecls topdecl semis  {% return ($2:$1) }
-         | {- empty -}             {% return [] }
+topdecls : topdecls topdecl  {% return ($2:$1) }
+         | {- empty -}       {% return [] }
 
 
 topdecl :: { TopDecl }
-topdecl : topLevelBinding { $1 }
-
-
-bindArgs :: { [String] }
-         : bindArgs ',' var {% return ($3:$1)}
-         | var  {% return [$1] }
-
-optionalArgs :: { [String] }
-             : bindArgs {% return $1 }
-             | {- empty -} {% return [] }
-
-topLevelBinding :: { TopDecl }
-                -- any top level let statement
-                : letBinding {% return $1 }
+topdecl : letBinding { $1 }
 
 
 -- Arguments is just a list of patterns
@@ -82,8 +69,6 @@ arguments_ :: { [Pat] }
            | {- empty -} {% return [] }
 
 
-ifstmt :: { Expr }
-       : 'if' exp 'then' exp 'else' exp {% return $ If $2 $4 $6 }
 
 apat :: { Pat }
     : var {% return $ VarPat $1 }
@@ -105,15 +90,17 @@ letBinding :: { TopDecl }
     | 'let' var ofcases {% return $ Binding $2 $3 }
 
 aexp :: { Expr }
-    : '(' ')'        {% return $ TupleLit [] } -- tuples are parsed before parenthesized exprs
-    -- parsing a parenthesis can be a little tricky because the trailing comma changes the expression
-    -- from the expression it contains to a tuple of length one
-    | '(' listcontents ')' {% return $ makeTupleOrExpr (reverse $2) }
-    | '-' aexp     {% return $ Neg $2 } -- Negation parser, simply negate the second expression
-    | var          {% return $ Var $1 } -- simple variable, just a name
-    | literal      {% return $1 }
-    | lambda       {% return $1 }
-    | ifstmt       {% return $1 }
+    : '(' ')'         {% return $ TupleLit [] }
+    | '(' explist ')' {% return $ makeTupleOrExpr (reverse $2) }
+    | '-' aexp        {% return $ Neg $2 }
+    | 'if' exp 'then' exp 'else' exp {% return $ If $2 $4 $6 }
+    | aexp1           { $1 }
+
+aexp1 :: { Expr }
+aexp1
+    : var             {% return $ Var $1 } -- simple variable, just a name
+    | literal         {% return $1 }
+    | lam arguments '->' exp {% mkLambda $2 $4 }
 
 
 literal :: { Expr }
@@ -124,29 +111,24 @@ literal : listlit {% return $1 }
  -- A literal list, will end up as a series of cons calls
 listlit :: { Expr }
 listlit : '[' ']' {% return $ EmptyList }
-        | '[' listcontents ']' {% return $ toLCons $ reverse $2 }
+        | '[' explist ']' {% return $ toLCons $ reverse $2 }
         | aexp ':' aexp        {% return $ LCons $1 $3 }
 
 
-listcontents :: { [Expr] }
-         : listcontents ',' exp {% return ($3:$1)}
+explist :: { [Expr] }
+         : explist ',' exp {% return ($3:$1)}
          | exp  {% return [$1] }
 
 
  -- fexp is a function application expression, which basically
  -- just means doing left associative juxtaposition for function application
 fexp :: { Expr }
-     : aexp appArgs {% return $ App $1 (reverse $2)}
+     : aexp appargs {% return $ App $1 (reverse $2)}
      | aexp         {% return $1 }
-     | infixop      {% return $1 }
-
-
-lambda :: { Expr }
-lambda : lam arguments '->' exp {% return $ Lambda $2 $4 }
 
      -- arguments to a function application
-appArgs :: { [Expr] }
-      : appArgs aexp {% return $ ($2:$1)}
+appargs :: { [Expr] }
+      : appargs aexp {% return $ ($2:$1)}
       | aexp {% return [$1]}
 
 
@@ -166,13 +148,22 @@ exp : infixop {% return $1}
 
 
 
-
 {
 -- Take a list of expressions and if the list of 1 long, it is simpy the first value,
 -- if it is any more, create a tuple
 makeTupleOrExpr :: [Expr] -> Expr
 makeTupleOrExpr [e] = e
 makeTupleOrExpr es@(_:_) = TupleLit es
+
+
+
+
+mkLambda :: [Pat] -> Expr -> ParseResult Expr
+mkLambda args bod = if not allVars
+                        then fail "Lambda literals must have all variable name arguments"
+                        else return $ Lambda args bod
+                    where allVars = all (patternIsVar) args
+
 
 -- | handle a parser error with the token stream where the error occurs.
 --  TODO: create a better error message reporting system with a pretty printer

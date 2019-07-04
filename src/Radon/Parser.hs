@@ -1,8 +1,10 @@
 module Radon.Parser
-    ( parseString
+    ( parseString, parseExpString
     ) where
 
 import Radon.Parser.Lexer (lexString)
-import Radon.Parser.Parser (parseModule)
+import Radon.Parser.Parser (parseModule, parseExpr)
 
 parseString = parseModule . lexString
+
+parseExpString = parseExpr . lexString

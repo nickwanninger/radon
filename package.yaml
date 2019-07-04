@@ -28,11 +28,11 @@ dependencies:
 - ansi-terminal
 - text
 - array
+- pretty
 
 build-tools:
   - alex
   - happy
-
 
 library:
   source-dirs: src

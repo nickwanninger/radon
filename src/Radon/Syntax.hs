@@ -1,12 +1,9 @@
 module Radon.Syntax where
 
 import Data.List
+import Text.PrettyPrint hiding ((<>))
 
 type Name = String
-
-data Module =
-    Module Name [TopDecl]
-    deriving (Eq)
 
 data RaModule =
     RaModule
@@ -17,12 +14,7 @@ data RaModule =
 
 instance Show RaModule where
     show m =
-        intercalate
-            "\n\n"
-            (map show
-                 (case (modStmts m) of
-                      Nothing -> []
-                      Just l -> l))
+        render $ ppModule m
 
 type Id = String
 
@@ -44,28 +36,12 @@ data Expr
     deriving (Eq)
 
 instance Show Expr where
-    show (Var n) = n
-    show (Lit l) = show l
-    show (If c e1 e2) =
-        "if " <> (show c) <> " then " <> (show e1) <> " else " <> (show e2)
-    show (Let n e1 e2) =
-        "let " <> n <> " = " <> (show e1) <> " in " <> (show e2)
-    show (OpApp lhs op rhs) =
-        "(" <> (intercalate " " (map show [lhs, op, rhs])) <> ")"
-    show (App f args) =
-        "(" <> (show f) <> " " <> (intercalate " " $ map show args) <> ")"
-    show (Neg e) = "-" ++ (show e)
-    show (LCons l r) = "(" <> (show l) <> ":" <> (show r) <> ")"
-    show (EmptyList) = "[]"
-    show (TupleLit elems) = showTuple elems
-    show (Lambda args body) =
-        "(\\" <> (intercalate " " (map show args)) <> " -> " <> (show body) <>
-        ")"
+    show x = render $ ppExpr x
 
 showTuple :: [Expr] -> String
 showTuple [] = "()"
-showTuple [x] = "(" <> (show x) <> ",)"
-showTuple elms = "(" <> (intercalate ", " $ map show elms) <> ")"
+showTuple [x] = "(" ++ (show x) ++ ",)"
+showTuple elms = "(" ++ (intercalate ", " $ map show elms) ++ ")"
 
 -- Converts a haskell list of expressions to a nested lcons expr
 toLCons :: [Expr] -> Expr
@@ -86,10 +62,7 @@ data TopDecl =
     deriving (Eq)
 
 instance Show TopDecl where
-    show (Binding name args) = label <> (showArgCases indent args)
-      where
-        label = "let " <> name
-        indent = length label
+    show x = render $ ppTop x
 
 data Pat
     = VarPat (Id)
@@ -119,7 +92,7 @@ type ArgCase = (Arguments, Expr)
 
 showArgs :: Arguments -> String
 showArgs [] = ""
-showArgs args = " " <> (intercalate " " (map show args))
+showArgs args = " " ++ (intercalate " " (map show args))
 
 showArgCase :: ArgCase -> String
 showArgCase (args, val) = (showArgs args) ++ " = " ++ (show val)
@@ -131,3 +104,47 @@ showArgCases ind cases =
     indent ++ (intercalate indent (map ("of " ++) (map (showArgCase) cases)))
   where
     indent = "\n    "
+
+-- Pretty print a module into a document
+ppModule :: RaModule -> Doc
+ppModule m =
+    vcat $
+    map ppTop $
+    case modStmts m of
+        Nothing -> []
+        Just tl -> tl
+
+-- pretty print a top level declaration
+ppTop :: TopDecl -> Doc
+ppTop (Binding name args) =
+    text "let" <+> (text name) $$ nest 4 (ppArgCases args)
+
+ppPat :: Pat -> Doc
+ppPat p = text $ show p
+
+ppArgs :: Arguments -> Doc
+ppArgs [] = text ""
+ppArgs args = hsep (map ppPat args)
+
+ppArgCase :: ArgCase -> Doc
+ppArgCase (args, val) = (ppArgs args) <+> (char '=') <+> (ppExpr val)
+
+ppArgCases :: [ArgCase] -> Doc
+ppArgCases cases = vcat $ map ((text "of") <+>) $ map ppArgCase cases
+
+ppExpr :: Expr -> Doc
+ppExpr (Var n) = text n
+ppExpr (Lit l) = text $ show l
+ppExpr (If cond e1 e2) =
+    text "if" <+>
+    (ppExpr cond) <+>
+    (nest 3 $ vcat [text "then" <+> ppExpr e1, text "else" <+> ppExpr e2])
+    --
+ppExpr (Let n e1 e2) = text "LET"
+ppExpr (OpApp lhs op rhs) = parens $ sep $ map ppExpr [lhs, op, rhs]
+ppExpr (App f args) = parens $ sep $ (ppExpr f) : (map ppExpr args)
+ppExpr (Neg e) = char '-' <+> (ppExpr e)
+ppExpr (LCons l r) = (ppExpr l) <> (char ':')
+ppExpr (EmptyList) = text "[]"
+ppExpr (TupleLit elems) = undefined
+ppExpr (Lambda args body) = undefined
