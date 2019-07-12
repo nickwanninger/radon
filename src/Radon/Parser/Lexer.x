@@ -7,21 +7,10 @@ module Radon.Parser.Lexer (Token(..), TokenData(..), lexString) where
 
 %wrapper "posn"
 
+$digit  = 0-9
 
-$ascdigit  = 0-9
-$unidigit  = \x03 -- Trick Alex into handling Unicode. See [Unicode in Alex].
-$decdigit  = $ascdigit -- for now, should really be $digit (ToDo)
-$digit     = [$ascdigit $unidigit] -- unicode or ascii digit
-
-
-$unismall  = \x02 -- Trick Alex into handling unicode
-$ascsmall  = [a-z] -- any ascii lowercase char
-$small     = [$unismall $ascsmall]
-
-
-$unilarge  = \x01 -- Trick Alex into handling unicode
-$asclarge  = [A-Z] -- any ascii lowercase char
-$large     = [$unilarge $asclarge]
+$small  = [a-z] -- any ascii lowercase char
+$large  = [A-Z] -- any ascii lowercase char
 
 $idchar    = [$small $large $digit \']
 
@@ -67,6 +56,7 @@ data TokenData
     | TIf
     | TThen
     | TElse
+    | TDef
     | TEquals
     | TOf
     -- Variable-esque things
@@ -127,6 +117,7 @@ makeOper s = TOper s
 
 -- | convert an identifier to either a variable or one of the special ident tokens
 makeIdent :: String -> TokenData
+makeIdent "def" = TDef
 makeIdent "let" = TLet
 makeIdent "in" = TIn
 makeIdent "if" = TIf

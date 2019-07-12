@@ -3,7 +3,7 @@
 
 ## Building
 
-First, you have to have the correct llvm version installed. radon requires llvm-7.
+First, you have to have the correct llvm version installed. Radon requires llvm-7.
 
 macOS (homebrew):
 ```bash

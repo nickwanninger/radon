@@ -17,12 +17,14 @@ import Radon.Types
 %monad { ParseResult } { >>= } { return }
 
 %token
+	'def'  {Tok _ (TDef)}
 	'let'  {Tok _ (TLet)}
 	'of'   {Tok _ (TOf)}
     'if'   {Tok _ (TIf)}
-    'then'   {Tok _ (TThen)}
-    'else'   {Tok _ (TElse)}
-	-- ';'    {Tok _ (TSemi)}
+    'then' {Tok _ (TThen)}
+    'else' {Tok _ (TElse)}
+    'in'   {Tok _ (TIn)}
+	';'    {Tok _ (TSemi)}
 	'='    {Tok _ (TEquals)}
 	var    {Tok _ (TIdent $$)}
     '-'    {Tok _ (TOper "-")}
@@ -46,8 +48,8 @@ import Radon.Types
 
   -- a module is a grouping of top level expressions, like imports,
 	-- declarations, types, etc.
-module :: { RaModule }
-       : topdecls    {% return $ RaModule {modName = Nothing, modStmts = Just (reverse $1)} }
+module :: { Module }
+       : topdecls    {% return $ Module {modName = Nothing, modStmts = Just (reverse $1)} }
 
 
 topdecls :: { [TopDecl] }
@@ -70,6 +72,10 @@ arguments_ :: { [Pat] }
 
 
 
+optionalSemi
+    : ';' {}
+    | {- empty -} {}
+
 apat :: { Pat }
     : var {% return $ VarPat $1 }
     | '_' {% return $ WildPat }
@@ -86,14 +92,15 @@ ofcases_ :: { [([Pat], Expr)] }
 letBinding :: { TopDecl }
     -- First type of let statement is simply without any extra cases.
     -- for example: let id x = x
-    : 'let' var arguments '=' exp {% return $ (Binding $2 [($3, $5)]) }
-    | 'let' var ofcases {% return $ Binding $2 $3 }
+    : 'def' var arguments '=' exp {% return $ (Binding $2 [($3, $5)]) }
+    | 'def' var ofcases {% return $ Binding $2 $3 }
 
 aexp :: { Expr }
     : '(' ')'         {% return $ TupleLit [] }
     | '(' explist ')' {% return $ makeTupleOrExpr (reverse $2) }
     | '-' aexp        {% return $ Neg $2 }
     | 'if' exp 'then' exp 'else' exp {% return $ If $2 $4 $6 }
+    | 'let' bindings optionalSemi 'in' exp {% return $ Let $2 $5 }
     | aexp1           { $1 }
 
 aexp1 :: { Expr }
@@ -120,6 +127,14 @@ explist :: { [Expr] }
          | exp  {% return [$1] }
 
 
+
+
+bindings :: { [(Pat, Expr)] }
+         : bindings ';' apat '=' exp {% return (($3, $5):$1) }
+         | apat '=' exp {% return [($1, $3)]}
+
+
+
  -- fexp is a function application expression, which basically
  -- just means doing left associative juxtaposition for function application
 fexp :: { Expr }
@@ -139,20 +154,25 @@ op : varop {% return $ Var $1 }
 infixop :: { Expr }
 infixop
     : fexp {% return $1 }
-    | infixop op fexp {% return $ OpApp $1 $2 $3 }
+    | infixop op fexp {% return $ joinOper $1 $2 $3 }
 
 exp :: { Expr }
 exp : infixop {% return $1}
 
 
 
-
-
 {
+
+
+joinOper :: Expr -> Expr -> Expr -> Expr
+joinOper (OpChain ops) op r = OpChain $ ops ++ [op, r]
+joinOper l op r = OpChain [l, op, r]
+
+
 -- Take a list of expressions and if the list of 1 long, it is simpy the first value,
 -- if it is any more, create a tuple
 makeTupleOrExpr :: [Expr] -> Expr
-makeTupleOrExpr [e] = e
+makeTupleOrExpr [e] = Paren e
 makeTupleOrExpr es@(_:_) = TupleLit es
 
 

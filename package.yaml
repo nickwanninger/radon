@@ -29,6 +29,11 @@ dependencies:
 - text
 - array
 - pretty
+# - grin
+# - llvm-hs
+# - llvm-hs-pure
+# - llvm-hs-pretty
+- mtl
 
 build-tools:
   - alex
@@ -41,17 +46,6 @@ executables:
   radc:
     main:                Main.hs
     source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - radon
-
-tests:
-  radon-test:
-    main:                Spec.hs
-    source-dirs:         test
     ghc-options:
     - -threaded
     - -rtsopts

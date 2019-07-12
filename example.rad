@@ -1,1 +1,1 @@
-let square x = x * x
+def square x = x * x
