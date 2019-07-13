@@ -12,7 +12,7 @@ $digit  = 0-9
 $small  = [a-z] -- any ascii lowercase char
 $large  = [A-Z] -- any ascii lowercase char
 
-$idchar    = [$small $large $digit \']
+$idchar    = [$small $large $digit \' \_]
 
 
 $operator = [\!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~\:]

@@ -104,10 +104,3 @@ main :: IO ()
 main = do
     args <- getArgs
     radon_main args
-
--- foo === bar (they are the same)
-foo = [x*2 | x<-[1..10], odd x]
-bar = do
-    x <- [1..]
-    guard (odd x)
-    return (x * 2)

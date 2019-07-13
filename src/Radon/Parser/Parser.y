@@ -49,7 +49,7 @@ import Radon.Types
   -- a module is a grouping of top level expressions, like imports,
 	-- declarations, types, etc.
 module :: { Module }
-       : topdecls    {% return $ Module {modName = Nothing, modStmts = Just (reverse $1)} }
+       : topdecls    {% return $ Module {modName = Nothing, modStmts = reverse $1} }
 
 
 topdecls :: { [TopDecl] }

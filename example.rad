@@ -1,1 +1,8 @@
+-- ^2
 def square x = x * x
+
+-- ^4
+def quad x = let y = square x
+              in square y
+
+def y = 3

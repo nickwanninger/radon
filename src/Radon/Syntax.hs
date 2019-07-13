@@ -8,7 +8,7 @@ type Name = String
 data Module =
     Module
         { modName :: Maybe String
-        , modStmts :: Maybe [TopDecl]
+        , modStmts :: [TopDecl]
         }
     deriving (Eq)
 
@@ -107,10 +107,7 @@ showArgCases ind cases =
 ppModule :: Module -> Doc
 ppModule m =
     vcat $
-    map ppTop $
-    case modStmts m of
-        Nothing -> []
-        Just tl -> tl
+    map ppTop $ modStmts m
 
 -- pretty print a top level declaration
 ppTop :: TopDecl -> Doc
@@ -149,7 +146,7 @@ ppExpr (EmptyList) = text "[]"
 ppExpr (TupleLit elems) = parens $ sep $ map ppExpr elems
 ppExpr (Lambda args body) =
     ((text "\\") <> (sep $ map ppPat args)) <+> (text "->") <+> (ppExpr body)
-ppExpr (OpChain elems) = sep $ map ppExpr elems
+ppExpr (OpChain elems) = parens $ sep $ map ppExpr elems
 
 ppBindings :: [(Pat, Expr)] -> Doc
 ppBindings bs = vcat $ map (\(n, e) -> (ppPat n <+> (text "=") <+> ppExpr e) <> text ";") bs
